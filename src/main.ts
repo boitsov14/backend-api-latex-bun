@@ -4,7 +4,3 @@ const app = new Hono()
 app.get('/', c => c.text('Hello Bun!'))
 
 export default app
-
-const a = () => {
-  console.log('Hello')
-}

@@ -1,3 +1,6 @@
 {
-  "extends": ["@tsconfig/bun/tsconfig.json", "@tsconfig/strictest/tsconfig.json"],
+  "extends": [
+    "@tsconfig/bun/tsconfig.json",
+    "@tsconfig/strictest/tsconfig.json"
+  ]
 }
