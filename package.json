@@ -8,6 +8,8 @@
   },
   "devDependencies": {
     "@biomejs/biome": "latest",
+    "@tsconfig/bun": "latest",
+    "@tsconfig/strictest": "latest",
     "@types/bun": "latest"
   }
 }
