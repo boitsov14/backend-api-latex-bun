@@ -1,7 +1,8 @@
 {
   "name": "backend-api-latex",
   "scripts": {
-    "dev": "bun run --hot src/main.ts"
+    "dev": "bun run --hot src/main.ts",
+    "check": "bun biome check --write src"
   },
   "dependencies": {
     "hono": "latest"
