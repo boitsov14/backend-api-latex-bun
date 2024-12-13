@@ -7,7 +7,8 @@
     "rules": {
       "all": true,
       "correctness": {
-        "noNodejsModules": "off"
+        "noNodejsModules": "off",
+        "noUndeclaredVariables": "off"
       },
       "style": {
         "noDefaultExport": "off"

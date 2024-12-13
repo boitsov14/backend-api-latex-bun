@@ -6,7 +6,8 @@
     "compile": "bun build src/main.ts --compile --minify --sourcemap --bytecode --outfile server"
   },
   "dependencies": {
-    "hono": "latest"
+    "hono": "latest",
+    "zod": "latest"
   },
   "devDependencies": {
     "@biomejs/biome": "latest",
