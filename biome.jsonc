@@ -6,6 +6,9 @@
   "linter": {
     "rules": {
       "all": true,
+      "correctness": {
+        "noNodejsModules": "off"
+      },
       "style": {
         "noDefaultExport": "off"
       },
