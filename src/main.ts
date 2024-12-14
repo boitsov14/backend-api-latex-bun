@@ -35,12 +35,17 @@ const tempDirMiddleware = createMiddleware<{ Variables: { out: string } }>(
 app.post('/png', tempDirMiddleware, async c => {
   // get multipart data
   const body = await c.req.parseBody()
-  // get file
-  const { file } = z.object({ file: z.instanceof(File) }).parse(body)
-  // check file type
-  if (!file.name.endsWith('.tex')) {
-    return c.text('Invalid file type', 400)
+  // validate data
+  const { data, success } = z
+    .object({
+      file: z.instanceof(File).refine(file => file.name === 'out.tex'),
+    })
+    .safeParse(body)
+  if (!success) {
+    return c.text('Invalid request', 400)
   }
+  // get file
+  const { file } = data
   // save file to temp directory
   const out = c.get('out')
   await Bun.write(`${out}/out.tex`, await file.arrayBuffer())
