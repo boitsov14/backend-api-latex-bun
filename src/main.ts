@@ -11,7 +11,7 @@ app.use(logger())
 // handle errors
 app.onError((err, c) => {
   console.error(err)
-  return c.text('Unknown error', 400)
+  return c.text('Unexpected error', 400)
 })
 // create temp dir
 // biome-ignore lint/style/useNamingConvention:
@@ -64,16 +64,24 @@ app.post('/png', tempDirMiddleware, async c => {
   }
   // convert pdf to png
   const { exitCode: pngExitCode } =
-    await $`gs -dBATCH -dNOPAUSE -r600 -sDEVICE=pngmono -o "${out}/out.png" "${out}/out.pdf"`
+    await $`gs -dBATCH -dNOPAUSE -r600 -sDEVICE=pngmono -o "${out}/out.png" "${out}/out.pdf"`.nothrow()
   // log exit code
   console.info(`exit code: ${pngExitCode}`)
   // if exit code is not 0 or png does not exist
   if (pngExitCode !== 0 || !(await Bun.file(`${out}/out.png`).exists())) {
-    text += 'Failed: Unknown error.'
+    text += 'Failed: Unexpected error.'
     return c.text(text)
   }
-  // return 200
-  return c.text('ok')
+  text += 'Done!'
+  // read png as buffer
+  const buffer = await Bun.file(`${out}/out.png`).arrayBuffer()
+
+  text += '\nあα'
+  c.header('Content-Type', 'image/png')
+  // c.header('Content-Length', buffer.byteLength.toString())
+  // c.header('Content-Disposition', 'attachment; filename=out.png')
+  c.header('X-Text', encodeURIComponent(text))
+  return c.body(buffer)
 })
 
 export default app
