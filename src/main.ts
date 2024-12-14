@@ -13,7 +13,7 @@ app.onError((err, c) => {
   console.error(err)
   return c.text(
     'An unexpected error occurred: Could not compile latex file',
-    500,
+    400,
   )
 })
 // create temp dir
@@ -37,6 +37,10 @@ app.post('/png', tempDirMiddleware, async c => {
   const body = await c.req.parseBody()
   // get file
   const { file } = z.object({ file: z.instanceof(File) }).parse(body)
+  // check file type
+  if (!file.name.endsWith('.tex')) {
+    return c.text('Invalid file type', 400)
+  }
   // save file to temp directory
   const out = c.get('out')
   await Bun.write(`${out}/out.tex`, await file.arrayBuffer())
@@ -50,12 +54,12 @@ app.post('/png', tempDirMiddleware, async c => {
   // check for errors: Dimension too large
   if (stdout.includes('Dimension too large')) {
     text += 'Failed: Dimension too large.'
-    return c.text(text)
+    return c.text(text, 400)
   }
   // if exit code is not 0 or pdf does not exist
   if (exitCode !== 0 || !(await Bun.file(`${out}/out.pdf`).exists())) {
     text += 'Failed: Unknown error.'
-    return c.text(text)
+    return c.text(text, 400)
   }
   // return 200
   return c.text('ok')
