@@ -44,11 +44,9 @@ app.post('/png', tempDirMiddleware, async c => {
   if (!success) {
     return c.text('Invalid request', 400)
   }
-  // get file
-  const { file } = data
   // save file to temp directory
   const out = c.get('out')
-  await Bun.write(`${out}/out.tex`, await file.arrayBuffer())
+  await Bun.write(`${out}/out.tex`, await data.file.arrayBuffer())
   // set response text
   let text = 'Generating PDF...\n'
   // run pdflatex
