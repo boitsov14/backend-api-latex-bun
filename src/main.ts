@@ -11,10 +11,7 @@ app.use(logger())
 // handle errors
 app.onError((err, c) => {
   console.error(err)
-  return c.text(
-    'An unexpected error occurred: Could not compile latex file',
-    400,
-  )
+  return c.text('Unknown error', 400)
 })
 // create temp dir
 // biome-ignore lint/style/useNamingConvention:
@@ -36,33 +33,44 @@ app.post('/png', tempDirMiddleware, async c => {
   // get multipart data
   const body = await c.req.parseBody()
   // validate data
-  const { data, success } = z
+  const result = z
     .object({
       file: z.instanceof(File).refine(file => file.name === 'out.tex'),
     })
     .safeParse(body)
-  if (!success) {
+  if (!result.success) {
+    console.error(result.error)
     return c.text('Invalid request', 400)
   }
   // save file to temp directory
   const out = c.get('out')
-  await Bun.write(`${out}/out.tex`, await data.file.arrayBuffer())
+  await Bun.write(`${out}/out.tex`, await result.data.file.arrayBuffer())
   // set response text
   let text = 'Generating PDF...\n'
   // run pdflatex
-  const { stdout, exitCode } =
+  const { stdout: pdfStdout, exitCode: pdfExitCode } =
     await $`pdflatex -halt-on-error -interaction=nonstopmode -output-directory ${out} ${out}/out.tex`.nothrow()
   // log exit code
-  console.info(`exit code: ${exitCode}`)
+  console.info(`exit code: ${pdfExitCode}`)
   // check for errors: Dimension too large
-  if (stdout.includes('Dimension too large')) {
+  if (pdfStdout.includes('Dimension too large')) {
     text += 'Failed: Dimension too large.'
-    return c.text(text, 400)
+    return c.text(text)
   }
   // if exit code is not 0 or pdf does not exist
-  if (exitCode !== 0 || !(await Bun.file(`${out}/out.pdf`).exists())) {
+  if (pdfExitCode !== 0 || !(await Bun.file(`${out}/out.pdf`).exists())) {
     text += 'Failed: Unknown error.'
-    return c.text(text, 400)
+    return c.text(text)
+  }
+  // convert pdf to png
+  const { exitCode: pngExitCode } =
+    await $`gs -dBATCH -dNOPAUSE -r600 -sDEVICE=pngmono -o "${out}/out.png" "${out}/out.pdf"`
+  // log exit code
+  console.info(`exit code: ${pngExitCode}`)
+  // if exit code is not 0 or png does not exist
+  if (pngExitCode !== 0 || !(await Bun.file(`${out}/out.png`).exists())) {
+    text += 'Failed: Unknown error.'
+    return c.text(text)
   }
   // return 200
   return c.text('ok')
