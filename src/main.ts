@@ -40,15 +40,13 @@ app.post('/png', tempDirMiddleware, async c => {
   // save file to temp directory
   const out = c.get('out')
   await Bun.write(`${out}/out.tex`, tex)
-  // set response text
-  let text = 'Generating PDF...\n'
   // run pdflatex
+  console.info('Generating PDF...')
+  let text = 'Generating PDF...\n'
   const { stdout: pdfStdout, exitCode: pdfExitCode } =
     await $`pdflatex -halt-on-error -interaction=nonstopmode -output-directory ${out} ${out}/out.tex`
       .nothrow()
       .quiet()
-  // log exit code
-  console.info(`exit code: ${pdfExitCode}`)
   // check for errors: Dimension too large
   if (pdfStdout.includes('Dimension too large')) {
     text += 'Failed: Dimension too large.'
@@ -59,19 +57,21 @@ app.post('/png', tempDirMiddleware, async c => {
     text += 'Failed: Unexpected error.'
     return c.text(text)
   }
-  text += 'Generating PNG...\n'
+  console.info('Done!')
+  text += 'Done!\n'
   // convert pdf to png
+  console.info('Generating PNG...')
+  text += 'Generating PNG...\n'
   const { exitCode: pngExitCode } =
     await $`gs -dBATCH -dNOPAUSE -r600 -sDEVICE=pngmono -o "${out}/out.png" "${out}/out.pdf"`
       .nothrow()
       .quiet()
-  // log exit code
-  console.info(`exit code: ${pngExitCode}`)
   // if exit code is not 0 or png does not exist
   if (pngExitCode !== 0 || !(await Bun.file(`${out}/out.png`).exists())) {
     text += 'Failed: Unexpected error.'
     return c.text(text)
   }
+  console.info('Done!')
   // read png as buffer
   const buffer = await Bun.file(`${out}/out.png`).arrayBuffer()
   c.header('Content-Type', 'image/png')
