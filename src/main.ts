@@ -3,7 +3,6 @@ import { $ } from 'bun'
 import { createMiddleware } from 'hono/factory'
 import { logger } from 'hono/logger'
 import { Hono } from 'hono/quick'
-import { z } from 'zod'
 
 const app = new Hono()
 // log requests
@@ -19,8 +18,8 @@ const tempDirMiddleware = createMiddleware<{ Variables: { out: string } }>(
   async (c, next) => {
     // create temp dir
     const out = mkdtempSync('out-')
+    c.set('out', out)
     try {
-      c.set('out', out)
       await next()
     } finally {
       // remove temp dir
@@ -30,26 +29,24 @@ const tempDirMiddleware = createMiddleware<{ Variables: { out: string } }>(
 )
 
 app.post('/png', tempDirMiddleware, async c => {
-  // get multipart data
-  const body = await c.req.parseBody()
-  // validate data
-  const result = z
-    .object({
-      file: z.instanceof(File).refine(file => file.name === 'out.tex'),
-    })
-    .safeParse(body)
-  if (!result.success) {
-    console.error(result.error)
-    return c.text('Invalid request', 400)
+  // check Content-Type is application/x-tex
+  if (c.req.header('Content-Type') !== 'application/x-tex') {
+    const text = 'Invalid Content-Type'
+    console.error(text)
+    return c.text(text, 400)
   }
+  // get tex
+  const tex = await c.req.text()
   // save file to temp directory
   const out = c.get('out')
-  await Bun.write(`${out}/out.tex`, await result.data.file.arrayBuffer())
+  await Bun.write(`${out}/out.tex`, tex)
   // set response text
   let text = 'Generating PDF...\n'
   // run pdflatex
   const { stdout: pdfStdout, exitCode: pdfExitCode } =
-    await $`pdflatex -halt-on-error -interaction=nonstopmode -output-directory ${out} ${out}/out.tex`.nothrow()
+    await $`pdflatex -halt-on-error -interaction=nonstopmode -output-directory ${out} ${out}/out.tex`
+      .nothrow()
+      .quiet()
   // log exit code
   console.info(`exit code: ${pdfExitCode}`)
   // check for errors: Dimension too large
@@ -62,9 +59,12 @@ app.post('/png', tempDirMiddleware, async c => {
     text += 'Failed: Unknown error.'
     return c.text(text)
   }
+  text += 'Generating PNG...\n'
   // convert pdf to png
   const { exitCode: pngExitCode } =
-    await $`gs -dBATCH -dNOPAUSE -r600 -sDEVICE=pngmono -o "${out}/out.png" "${out}/out.pdf"`.nothrow()
+    await $`gs -dBATCH -dNOPAUSE -r600 -sDEVICE=pngmono -o "${out}/out.png" "${out}/out.pdf"`
+      .nothrow()
+      .quiet()
   // log exit code
   console.info(`exit code: ${pngExitCode}`)
   // if exit code is not 0 or png does not exist
@@ -72,15 +72,11 @@ app.post('/png', tempDirMiddleware, async c => {
     text += 'Failed: Unexpected error.'
     return c.text(text)
   }
-  text += 'Done!'
   // read png as buffer
   const buffer = await Bun.file(`${out}/out.png`).arrayBuffer()
-
-  text += '\nあα'
   c.header('Content-Type', 'image/png')
   // c.header('Content-Length', buffer.byteLength.toString())
   // c.header('Content-Disposition', 'attachment; filename=out.png')
-  c.header('X-Text', encodeURIComponent(text))
   return c.body(buffer)
 })
 
