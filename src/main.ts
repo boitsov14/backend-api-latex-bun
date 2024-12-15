@@ -56,7 +56,7 @@ app.post('/png', tempDirMiddleware, async c => {
   }
   // if exit code is not 0 or pdf does not exist
   if (pdfExitCode !== 0 || !(await Bun.file(`${out}/out.pdf`).exists())) {
-    text += 'Failed: Unknown error.'
+    text += 'Failed: Unexpected error.'
     return c.text(text)
   }
   text += 'Generating PNG...\n'
