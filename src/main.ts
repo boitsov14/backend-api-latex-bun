@@ -9,7 +9,7 @@ const app = new Hono()
 app.use(logger())
 // handle errors
 app.onError((err, c) => {
-  console.error(err)
+  console.error(`Unexpected error: ${err}`)
   return c.text('Unexpected error', 400)
 })
 // create temp dir
@@ -31,9 +31,8 @@ const tempDirMiddleware = createMiddleware<{ Variables: { out: string } }>(
 app.post('/png', tempDirMiddleware, async c => {
   // check Content-Type is application/x-tex
   if (c.req.header('Content-Type') !== 'application/x-tex') {
-    const text = 'Invalid Content-Type'
-    console.error(text)
-    return c.text(text, 400)
+    console.error('Invalid Content-Type')
+    return c.text('Invalid Content-Type', 400)
   }
   // get tex
   const tex = await c.req.text()
@@ -49,13 +48,15 @@ app.post('/png', tempDirMiddleware, async c => {
       .quiet()
   // check for errors: Dimension too large
   if (pdfStdout.includes('Dimension too large')) {
-    text += 'Failed: Dimension too large.'
+    console.error('Failed: Dimension too large')
+    text += 'Failed: Dimension too large'
     return c.text(text)
   }
   // if exit code is not 0 or pdf does not exist
   if (pdfExitCode !== 0 || !(await Bun.file(`${out}/out.pdf`).exists())) {
-    text += 'Failed: Unexpected error.'
-    return c.text(text)
+    console.error('Failed: Unexpected error')
+    text += 'Failed: Unexpected error'
+    return c.text(text, 400)
   }
   console.info('Done!')
   text += 'Done!\n'
@@ -68,8 +69,9 @@ app.post('/png', tempDirMiddleware, async c => {
       .quiet()
   // if exit code is not 0 or png does not exist
   if (pngExitCode !== 0 || !(await Bun.file(`${out}/out.png`).exists())) {
-    text += 'Failed: Unexpected error.'
-    return c.text(text)
+    console.error('Failed: Unexpected error')
+    text += 'Failed: Unexpected error'
+    return c.text(text, 400)
   }
   console.info('Done!')
   // read png as buffer
