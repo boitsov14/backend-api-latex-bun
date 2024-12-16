@@ -31,7 +31,7 @@ const tempDirMiddleware = createMiddleware<{ Variables: { out: string } }>(
 app.post('/png', tempDirMiddleware, async c => {
   // check Content-Type is application/x-tex
   if (c.req.header('Content-Type') !== 'application/x-tex') {
-    console.error('Invalid Content-Type')
+    console.error(`Invalid Content-Type: ${c.req.header('Content-Type')}`)
     return c.text('Invalid Content-Type', 400)
   }
   // get tex
@@ -56,7 +56,7 @@ app.post('/png', tempDirMiddleware, async c => {
   if (pdfExitCode !== 0 || !(await Bun.file(`${out}/out.pdf`).exists())) {
     console.error('Failed: Unexpected error')
     text += 'Failed: Unexpected error'
-    return c.text(text, 500)
+    return c.text(text)
   }
   console.info('Done!')
   text += 'Done!\n'
@@ -71,7 +71,7 @@ app.post('/png', tempDirMiddleware, async c => {
   if (pngExitCode !== 0 || !(await Bun.file(`${out}/out.png`).exists())) {
     console.error('Failed: Unexpected error')
     text += 'Failed: Unexpected error'
-    return c.text(text, 500)
+    return c.text(text)
   }
   console.info('Done!')
   // read png as buffer
