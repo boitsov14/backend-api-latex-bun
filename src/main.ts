@@ -10,7 +10,7 @@ app.use(logger())
 // handle errors
 app.onError((err, c) => {
   console.error(`Unexpected error: ${err}`)
-  return c.text('Unexpected error', 400)
+  return c.text('Unexpected error', 500)
 })
 // create temp dir
 // biome-ignore lint/style/useNamingConvention:
@@ -56,7 +56,7 @@ app.post('/png', tempDirMiddleware, async c => {
   if (pdfExitCode !== 0 || !(await Bun.file(`${out}/out.pdf`).exists())) {
     console.error('Failed: Unexpected error')
     text += 'Failed: Unexpected error'
-    return c.text(text, 400)
+    return c.text(text, 500)
   }
   console.info('Done!')
   text += 'Done!\n'
@@ -71,7 +71,7 @@ app.post('/png', tempDirMiddleware, async c => {
   if (pngExitCode !== 0 || !(await Bun.file(`${out}/out.png`).exists())) {
     console.error('Failed: Unexpected error')
     text += 'Failed: Unexpected error'
-    return c.text(text, 400)
+    return c.text(text, 500)
   }
   console.info('Done!')
   // read png as buffer
