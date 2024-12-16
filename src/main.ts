@@ -84,4 +84,60 @@ app.post('/png', tempDirMiddleware, async c => {
   return c.body(buffer)
 })
 
+app.post('/pdf', tempDirMiddleware, async c => {
+  // check Content-Type is application/x-tex
+  if (c.req.header('Content-Type') !== 'application/x-tex') {
+    console.error(`Invalid Content-Type: ${c.req.header('Content-Type')}`)
+    return c.text('Invalid Content-Type', 400)
+  }
+  // get tex
+  const tex = await c.req.text()
+  // save file to temp directory
+  const out = c.get('out')
+  await Bun.write(`${out}/out.tex`, tex)
+  // run pdflatex
+  console.info('Generating PDF...')
+  let text = 'Generating PDF...\n'
+  const pdf =
+    await $`pdflatex -halt-on-error -interaction=nonstopmode -output-directory ${out} ${out}/out.tex`
+      .nothrow()
+      .quiet()
+  // Dimension too large
+  if (pdf.stdout.includes('Dimension too large')) {
+    console.error('Failed: Dimension too large')
+    text += 'Failed: Dimension too large'
+    return c.text(text)
+  }
+  // if pdf does not exist
+  if (!(await Bun.file(`${out}/out.pdf`).exists())) {
+    console.error('Failed: Unexpected error')
+    console.info(`${pdf.stdout}\n${pdf.stderr}`)
+    text += 'Failed: Unexpected error'
+    return c.text(text)
+  }
+  console.info('Done!')
+  text += 'Done!\n'
+  // compress pdf
+  console.info('Compressing PDF...')
+  text += 'Compressing PDF...\n'
+  const pdfComp =
+    await $`gs -dBATCH -dCompatibilityLevel=1.5 -dNOPAUSE -sDEVICE=pdfwrite -o "${out}/out-comp.pdf" "${out}/out.pdf"`
+      .nothrow()
+      .quiet()
+  // if compressed pdf does not exist
+  if (!(await Bun.file(`${out}/out-comp.pdf`).exists())) {
+    console.error('Failed: Unexpected error')
+    console.info(`${pdfComp.stdout}\n${pdfComp.stderr}`)
+    text += 'Failed: Unexpected error'
+    return c.text(text)
+  }
+  console.info('Done!')
+  // read compressed pdf as buffer
+  const buffer = await Bun.file(`${out}/out-comp.pdf`).arrayBuffer()
+  c.header('Content-Type', 'application/pdf')
+  // c.header('Content-Length', buffer.byteLength.toString())
+  // c.header('Content-Disposition', 'attachment; filename=out.pdf')
+  return c.body(buffer)
+})
+
 export default app
