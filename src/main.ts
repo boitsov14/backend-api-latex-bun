@@ -29,11 +29,6 @@ const tempDirMiddleware = createMiddleware<{ Variables: { out: string } }>(
 )
 
 app.post('/png', tempDirMiddleware, async c => {
-  // check Content-Type is application/x-tex
-  if (c.req.header('Content-Type') !== 'application/x-tex') {
-    console.error(`Invalid Content-Type: ${c.req.header('Content-Type')}`)
-    return c.text('Invalid Content-Type', 400)
-  }
   // get tex
   const tex = await c.req.text()
   // save file to temp directory
@@ -42,12 +37,10 @@ app.post('/png', tempDirMiddleware, async c => {
   // run pdflatex
   console.info('Generating PDF...')
   let text = 'Generating PDF...\n'
-  const pdf =
-    await $`pdflatex -halt-on-error -interaction=nonstopmode -output-directory ${out} ${out}/out.tex`
-      .nothrow()
-      .quiet()
+  const { stdout } =
+    await $`pdflatex -halt-on-error -interaction=nonstopmode -output-directory ${out} ${out}/out.tex`.nothrow()
   // Dimension too large
-  if (pdf.stdout.includes('Dimension too large')) {
+  if (stdout.includes('Dimension too large')) {
     console.error('Failed: Dimension too large')
     text += 'Failed: Dimension too large'
     return c.text(text)
@@ -55,7 +48,6 @@ app.post('/png', tempDirMiddleware, async c => {
   // if pdf does not exist
   if (!(await Bun.file(`${out}/out.pdf`).exists())) {
     console.error('Failed: Unexpected error')
-    console.info(`${pdf.stdout}\n${pdf.stderr}`)
     text += 'Failed: Unexpected error'
     return c.text(text)
   }
@@ -64,14 +56,10 @@ app.post('/png', tempDirMiddleware, async c => {
   // convert pdf to png
   console.info('Generating PNG...')
   text += 'Generating PNG...\n'
-  const png =
-    await $`gs -dBATCH -dNOPAUSE -r600 -sDEVICE=pngmono -o "${out}/out.png" "${out}/out.pdf"`
-      .nothrow()
-      .quiet()
+  await $`gs -dBATCH -dNOPAUSE -r600 -sDEVICE=pngmono -o "${out}/out.png" "${out}/out.pdf"`.nothrow()
   // if png does not exist
   if (!(await Bun.file(`${out}/out.png`).exists())) {
     console.error('Failed: Unexpected error')
-    console.info(`${png.stdout}\n${png.stderr}`)
     text += 'Failed: Unexpected error'
     return c.text(text)
   }
@@ -85,11 +73,6 @@ app.post('/png', tempDirMiddleware, async c => {
 })
 
 app.post('/pdf', tempDirMiddleware, async c => {
-  // check Content-Type is application/x-tex
-  if (c.req.header('Content-Type') !== 'application/x-tex') {
-    console.error(`Invalid Content-Type: ${c.req.header('Content-Type')}`)
-    return c.text('Invalid Content-Type', 400)
-  }
   // get tex
   const tex = await c.req.text()
   // save file to temp directory
@@ -98,12 +81,10 @@ app.post('/pdf', tempDirMiddleware, async c => {
   // run pdflatex
   console.info('Generating PDF...')
   let text = 'Generating PDF...\n'
-  const pdf =
-    await $`pdflatex -halt-on-error -interaction=nonstopmode -output-directory ${out} ${out}/out.tex`
-      .nothrow()
-      .quiet()
+  const { stdout } =
+    await $`pdflatex -halt-on-error -interaction=nonstopmode -output-directory ${out} ${out}/out.tex`.nothrow()
   // Dimension too large
-  if (pdf.stdout.includes('Dimension too large')) {
+  if (stdout.includes('Dimension too large')) {
     console.error('Failed: Dimension too large')
     text += 'Failed: Dimension too large'
     return c.text(text)
@@ -111,7 +92,6 @@ app.post('/pdf', tempDirMiddleware, async c => {
   // if pdf does not exist
   if (!(await Bun.file(`${out}/out.pdf`).exists())) {
     console.error('Failed: Unexpected error')
-    console.info(`${pdf.stdout}\n${pdf.stderr}`)
     text += 'Failed: Unexpected error'
     return c.text(text)
   }
@@ -120,14 +100,10 @@ app.post('/pdf', tempDirMiddleware, async c => {
   // compress pdf
   console.info('Compressing PDF...')
   text += 'Compressing PDF...\n'
-  const pdfComp =
-    await $`gs -dBATCH -dCompatibilityLevel=1.5 -dNOPAUSE -sDEVICE=pdfwrite -o "${out}/out-comp.pdf" "${out}/out.pdf"`
-      .nothrow()
-      .quiet()
+  await $`gs -dBATCH -dCompatibilityLevel=1.5 -dNOPAUSE -sDEVICE=pdfwrite -o "${out}/out-comp.pdf" "${out}/out.pdf"`.nothrow()
   // if compressed pdf does not exist
   if (!(await Bun.file(`${out}/out-comp.pdf`).exists())) {
     console.error('Failed: Unexpected error')
-    console.info(`${pdfComp.stdout}\n${pdfComp.stderr}`)
     text += 'Failed: Unexpected error'
     return c.text(text)
   }
