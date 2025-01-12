@@ -31,8 +31,9 @@ const tempDirMiddleware = createMiddleware<{ Variables: { out: string } }>(
 app.post('/png', tempDirMiddleware, async c => {
   // get tex
   const tex = await c.req.text()
-  // save file to temp directory
+  // get temp
   const out = c.get('out')
+  // save as file
   await Bun.write(`${out}/out.tex`, tex)
   // run pdflatex
   console.info('Generating PDF...')
@@ -41,13 +42,11 @@ app.post('/png', tempDirMiddleware, async c => {
     await $`pdflatex -halt-on-error -interaction=nonstopmode -output-directory ${out} ${out}/out.tex`.nothrow()
   // Dimension too large
   if (stdout.includes('Dimension too large')) {
-    console.error('Failed: Dimension too large')
     text += 'Failed: Dimension too large'
     return c.text(text)
   }
   // if pdf does not exist
   if (!(await Bun.file(`${out}/out.pdf`).exists())) {
-    console.error('Failed: Unexpected error')
     text += 'Failed: Unexpected error'
     return c.text(text)
   }
@@ -59,7 +58,6 @@ app.post('/png', tempDirMiddleware, async c => {
   await $`gs -dBATCH -dNOPAUSE -r600 -sDEVICE=pngmono -o "${out}/out.png" "${out}/out.pdf"`.nothrow()
   // if png does not exist
   if (!(await Bun.file(`${out}/out.png`).exists())) {
-    console.error('Failed: Unexpected error')
     text += 'Failed: Unexpected error'
     return c.text(text)
   }
@@ -75,8 +73,9 @@ app.post('/png', tempDirMiddleware, async c => {
 app.post('/pdf', tempDirMiddleware, async c => {
   // get tex
   const tex = await c.req.text()
-  // save file to temp directory
+  // get temp
   const out = c.get('out')
+  // save as file
   await Bun.write(`${out}/out.tex`, tex)
   // run pdflatex
   console.info('Generating PDF...')
@@ -85,13 +84,11 @@ app.post('/pdf', tempDirMiddleware, async c => {
     await $`pdflatex -halt-on-error -interaction=nonstopmode -output-directory ${out} ${out}/out.tex`.nothrow()
   // Dimension too large
   if (stdout.includes('Dimension too large')) {
-    console.error('Failed: Dimension too large')
     text += 'Failed: Dimension too large'
     return c.text(text)
   }
   // if pdf does not exist
   if (!(await Bun.file(`${out}/out.pdf`).exists())) {
-    console.error('Failed: Unexpected error')
     text += 'Failed: Unexpected error'
     return c.text(text)
   }
@@ -103,7 +100,6 @@ app.post('/pdf', tempDirMiddleware, async c => {
   await $`gs -dBATCH -dCompatibilityLevel=1.5 -dNOPAUSE -sDEVICE=pdfwrite -o "${out}/out-comp.pdf" "${out}/out.pdf"`.nothrow()
   // if compressed pdf does not exist
   if (!(await Bun.file(`${out}/out-comp.pdf`).exists())) {
-    console.error('Failed: Unexpected error')
     text += 'Failed: Unexpected error'
     return c.text(text)
   }
