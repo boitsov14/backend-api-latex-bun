@@ -3,6 +3,9 @@ import { $ } from 'bun'
 import { createMiddleware } from 'hono/factory'
 import { logger } from 'hono/logger'
 import { Hono } from 'hono/quick'
+import sizeOf from 'image-size'
+
+const PNG_MAX_DIMENSION = 8192
 
 const app = new Hono()
 // log requests
@@ -47,7 +50,7 @@ app.post('/png', tempDirMiddleware, async c => {
   }
   // if pdf does not exist
   if (!(await Bun.file(`${out}/out.pdf`).exists())) {
-    text += 'Failed: Unexpected error'
+    text += 'Failed: Unexpected error\nNo PDF generated'
     return c.text(text)
   }
   console.info('Done!')
@@ -55,19 +58,33 @@ app.post('/png', tempDirMiddleware, async c => {
   // convert pdf to png
   console.info('Generating PNG...')
   text += 'Generating PNG...\n'
-  await $`gs -dBATCH -dNOPAUSE -r600 -sDEVICE=pngmono -o "${out}/out.png" "${out}/out.pdf"`.nothrow()
-  // if png does not exist
-  if (!(await Bun.file(`${out}/out.png`).exists())) {
-    text += 'Failed: Unexpected error'
-    return c.text(text)
+  for (const dpi of [600, 300, 150, 100, 50, 2]) {
+    await $`gs -dBATCH -dNOPAUSE -r${dpi} -sDEVICE=pngmono -o "${out}/out.png" "${out}/out.pdf"`.nothrow()
+    // if png does not exist
+    if (!(await Bun.file(`${out}/out.png`).exists())) {
+      text += 'Failed: Unexpected error\nNo PNG generated'
+      return c.text(text)
+    }
+    console.info('Done!')
+    // check dimensions
+    const dimensions = sizeOf(`${out}/out.png`)
+    console.info(`${dpi} DPI: ${dimensions.width}x${dimensions.height}`)
+    if (
+      dimensions.width &&
+      dimensions.width <= PNG_MAX_DIMENSION &&
+      dimensions.height &&
+      dimensions.height <= PNG_MAX_DIMENSION
+    ) {
+      // read png as buffer
+      const buffer = await Bun.file(`${out}/out.png`).arrayBuffer()
+      c.header('Content-Type', 'image/png')
+      // c.header('Content-Length', buffer.byteLength.toString())
+      // c.header('Content-Disposition', 'attachment; filename=out.png')
+      return c.body(buffer)
+    }
   }
-  console.info('Done!')
-  // read png as buffer
-  const buffer = await Bun.file(`${out}/out.png`).arrayBuffer()
-  c.header('Content-Type', 'image/png')
-  // c.header('Content-Length', buffer.byteLength.toString())
-  // c.header('Content-Disposition', 'attachment; filename=out.png')
-  return c.body(buffer)
+  text += 'Failed: Unexpected error\nPNG too large'
+  return c.text(text)
 })
 
 app.post('/pdf', tempDirMiddleware, async c => {
@@ -89,7 +106,7 @@ app.post('/pdf', tempDirMiddleware, async c => {
   }
   // if pdf does not exist
   if (!(await Bun.file(`${out}/out.pdf`).exists())) {
-    text += 'Failed: Unexpected error'
+    text += 'Failed: Unexpected error\nNo PDF generated'
     return c.text(text)
   }
   console.info('Done!')
@@ -100,7 +117,7 @@ app.post('/pdf', tempDirMiddleware, async c => {
   await $`gs -dBATCH -dCompatibilityLevel=1.5 -dNOPAUSE -sDEVICE=pdfwrite -o "${out}/out-comp.pdf" "${out}/out.pdf"`.nothrow()
   // if compressed pdf does not exist
   if (!(await Bun.file(`${out}/out-comp.pdf`).exists())) {
-    text += 'Failed: Unexpected error'
+    text += 'Failed: Unexpected error\nNo compressed PDF generated'
     return c.text(text)
   }
   console.info('Done!')
@@ -112,4 +129,7 @@ app.post('/pdf', tempDirMiddleware, async c => {
   return c.body(buffer)
 })
 
-export default app
+export default {
+  port: 3001,
+  fetch: app.fetch,
+}
