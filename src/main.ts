@@ -46,11 +46,13 @@ app.post('/svg', tempDirMiddleware, async c => {
   // Dimension too large
   if (stdout.includes('Dimension too large')) {
     text += 'Failed: Dimension too large'
+    console.warn(text)
     return c.text(text)
   }
   // if dvi does not exist
   if (!(await Bun.file(`${out}/out.dvi`).exists())) {
     text += 'Failed: Unexpected error\nNo DVI generated'
+    console.error(text)
     return c.text(text)
   }
   console.info('Done!')
@@ -62,6 +64,7 @@ app.post('/svg', tempDirMiddleware, async c => {
   // if svg does not exist
   if (!(await Bun.file(`${out}/out.svg`).exists())) {
     text += 'Failed: Unexpected error\nNo SVG generated'
+    console.error(text)
     return c.text(text)
   }
   console.info('Done!')
@@ -89,11 +92,13 @@ app.post('/png', tempDirMiddleware, async c => {
   // Dimension too large
   if (stdout.includes('Dimension too large')) {
     text += 'Failed: Dimension too large'
+    console.warn(text)
     return c.text(text)
   }
   // if pdf does not exist
   if (!(await Bun.file(`${out}/out.pdf`).exists())) {
     text += 'Failed: Unexpected error\nNo PDF generated'
+    console.error(text)
     return c.text(text)
   }
   console.info('Done!')
@@ -106,6 +111,7 @@ app.post('/png', tempDirMiddleware, async c => {
     // if png does not exist
     if (!(await Bun.file(`${out}/out.png`).exists())) {
       text += 'Failed: Unexpected error\nNo PNG generated'
+      console.error(text)
       return c.text(text)
     }
     console.info('Done!')
@@ -128,6 +134,7 @@ app.post('/png', tempDirMiddleware, async c => {
     }
   }
   text += 'Failed: Unexpected error\nPNG too large'
+  console.error(text)
   return c.text(text)
 })
 
@@ -146,11 +153,13 @@ app.post('/pdf', tempDirMiddleware, async c => {
   // Dimension too large
   if (stdout.includes('Dimension too large')) {
     text += 'Failed: Dimension too large'
+    console.warn(text)
     return c.text(text)
   }
   // if pdf does not exist
   if (!(await Bun.file(`${out}/out.pdf`).exists())) {
     text += 'Failed: Unexpected error\nNo PDF generated'
+    console.error(text)
     return c.text(text)
   }
   console.info('Done!')
@@ -162,6 +171,7 @@ app.post('/pdf', tempDirMiddleware, async c => {
   // if compressed pdf does not exist
   if (!(await Bun.file(`${out}/out-comp.pdf`).exists())) {
     text += 'Failed: Unexpected error\nNo compressed PDF generated'
+    console.error(text)
     return c.text(text)
   }
   console.info('Done!')
