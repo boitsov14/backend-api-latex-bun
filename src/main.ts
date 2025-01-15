@@ -38,38 +38,39 @@ app.post('/svg', tempDirMiddleware, async c => {
   const out = c.get('out')
   // save as file
   await Bun.write(`${out}/out.tex`, tex)
-  // run pdflatex
-  console.info('Generating PDF...')
-  let text = 'Generating PDF...\n'
+  // run latex
+  console.info('Generating DVI...')
+  let text = 'Generating DVI...\n'
   const { stdout } =
-    await $`pdflatex -halt-on-error -interaction=nonstopmode -output-directory ${out} ${out}/out.tex`.nothrow()
+    await $`latex -halt-on-error -interaction=nonstopmode -output-directory ${out} ${out}/out.tex`.nothrow()
   // Dimension too large
   if (stdout.includes('Dimension too large')) {
     text += 'Failed: Dimension too large'
     return c.text(text)
   }
-  // if pdf does not exist
-  if (!(await Bun.file(`${out}/out.pdf`).exists())) {
-    text += 'Failed: Unexpected error\nNo PDF generated'
+  // if dvi does not exist
+  if (!(await Bun.file(`${out}/out.dvi`).exists())) {
+    text += 'Failed: Unexpected error\nNo DVI generated'
     return c.text(text)
   }
   console.info('Done!')
   text += 'Done!\n'
-  // compress pdf
-  console.info('Compressing PDF...')
-  text += 'Compressing PDF...\n'
-  await $`gs -dBATCH -dCompatibilityLevel=1.5 -dNOPAUSE -sDEVICE=pdfwrite -o "${out}/out-comp.pdf" "${out}/out.pdf"`.nothrow()
-  // if compressed pdf does not exist
-  if (!(await Bun.file(`${out}/out-comp.pdf`).exists())) {
-    text += 'Failed: Unexpected error\nNo compressed PDF generated'
+  // run dvisvgm
+  console.info('Generating SVG...')
+  text += 'Generating SVG...\n'
+  await $`dvisvgm --bbox=preview --bitmap-format=none --font-format=woff2 --optimize --relative -o "${out}/out.svg" "${out}/out.dvi"`.nothrow()
+  // if svg does not exist
+  if (!(await Bun.file(`${out}/out.svg`).exists())) {
+    text += 'Failed: Unexpected error\nNo SVG generated'
     return c.text(text)
   }
   console.info('Done!')
-  // read compressed pdf as buffer
-  const buffer = await Bun.file(`${out}/out-comp.pdf`).arrayBuffer()
-  c.header('Content-Type', 'application/pdf')
+  // read svg as buffer
+  const buffer = await Bun.file(`${out}/out.svg`).arrayBuffer()
+  console.info(`Size: ${buffer.byteLength} bytes`)
+  c.header('Content-Type', 'image/svg+xml')
   // c.header('Content-Length', buffer.byteLength.toString())
-  // c.header('Content-Disposition', 'attachment; filename=out.pdf')
+  // c.header('Content-Disposition', 'attachment; filename=out.svg')
   return c.body(buffer)
 })
 
@@ -119,6 +120,7 @@ app.post('/png', tempDirMiddleware, async c => {
     ) {
       // read png as buffer
       const buffer = await Bun.file(`${out}/out.png`).arrayBuffer()
+      console.info(`Size: ${buffer.byteLength} bytes`)
       c.header('Content-Type', 'image/png')
       // c.header('Content-Length', buffer.byteLength.toString())
       // c.header('Content-Disposition', 'attachment; filename=out.png')
@@ -165,6 +167,7 @@ app.post('/pdf', tempDirMiddleware, async c => {
   console.info('Done!')
   // read compressed pdf as buffer
   const buffer = await Bun.file(`${out}/out-comp.pdf`).arrayBuffer()
+  console.info(`Size: ${buffer.byteLength} bytes`)
   c.header('Content-Type', 'application/pdf')
   // c.header('Content-Length', buffer.byteLength.toString())
   // c.header('Content-Disposition', 'attachment; filename=out.pdf')
