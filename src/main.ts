@@ -31,6 +31,48 @@ const tempDirMiddleware = createMiddleware<{ Variables: { out: string } }>(
   },
 )
 
+app.post('/svg', tempDirMiddleware, async c => {
+  // get tex
+  const tex = await c.req.text()
+  // get temp
+  const out = c.get('out')
+  // save as file
+  await Bun.write(`${out}/out.tex`, tex)
+  // run pdflatex
+  console.info('Generating PDF...')
+  let text = 'Generating PDF...\n'
+  const { stdout } =
+    await $`pdflatex -halt-on-error -interaction=nonstopmode -output-directory ${out} ${out}/out.tex`.nothrow()
+  // Dimension too large
+  if (stdout.includes('Dimension too large')) {
+    text += 'Failed: Dimension too large'
+    return c.text(text)
+  }
+  // if pdf does not exist
+  if (!(await Bun.file(`${out}/out.pdf`).exists())) {
+    text += 'Failed: Unexpected error\nNo PDF generated'
+    return c.text(text)
+  }
+  console.info('Done!')
+  text += 'Done!\n'
+  // compress pdf
+  console.info('Compressing PDF...')
+  text += 'Compressing PDF...\n'
+  await $`gs -dBATCH -dCompatibilityLevel=1.5 -dNOPAUSE -sDEVICE=pdfwrite -o "${out}/out-comp.pdf" "${out}/out.pdf"`.nothrow()
+  // if compressed pdf does not exist
+  if (!(await Bun.file(`${out}/out-comp.pdf`).exists())) {
+    text += 'Failed: Unexpected error\nNo compressed PDF generated'
+    return c.text(text)
+  }
+  console.info('Done!')
+  // read compressed pdf as buffer
+  const buffer = await Bun.file(`${out}/out-comp.pdf`).arrayBuffer()
+  c.header('Content-Type', 'application/pdf')
+  // c.header('Content-Length', buffer.byteLength.toString())
+  // c.header('Content-Disposition', 'attachment; filename=out.pdf')
+  return c.body(buffer)
+})
+
 app.post('/png', tempDirMiddleware, async c => {
   // get tex
   const tex = await c.req.text()
