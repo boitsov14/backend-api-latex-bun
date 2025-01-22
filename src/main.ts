@@ -1,11 +1,13 @@
 import { mkdtempSync, rmSync } from 'node:fs'
 import { $ } from 'bun'
+import { cors } from 'hono/cors'
 import { createMiddleware } from 'hono/factory'
 import { logger } from 'hono/logger'
 import { Hono } from 'hono/quick'
 import sizeOf from 'image-size'
 
 const PNG_MAX_DIMENSION = 8192
+const gs = process.platform === 'win32' ? 'gswin64c' : 'gs'
 
 const app = new Hono()
 // log requests
@@ -13,8 +15,10 @@ app.use(logger())
 // handle errors
 app.onError((err, c) => {
   console.error(`Unexpected error: ${err}`)
-  return c.text('Unexpected error', 500)
+  return c.text('Unexpected error')
 })
+// set CORS
+app.use('*', cors())
 // create temp dir
 // biome-ignore lint/style/useNamingConvention:
 const tempDirMiddleware = createMiddleware<{ Variables: { out: string } }>(
@@ -72,6 +76,8 @@ app.post('/svg', tempDirMiddleware, async c => {
   const buffer = await Bun.file(`${out}/out.svg`).arrayBuffer()
   console.info(`Size: ${buffer.byteLength} bytes`)
   c.header('Content-Type', 'image/svg+xml')
+  c.header('X-Text', btoa(text))
+  // c.header('Access-Control-Expose-Headers', 'X-Text')
   // c.header('Content-Length', buffer.byteLength.toString())
   // c.header('Content-Disposition', 'attachment; filename=out.svg')
   return c.body(buffer)
@@ -107,7 +113,7 @@ app.post('/png', tempDirMiddleware, async c => {
   console.info('Generating PNG...')
   text += 'Generating PNG...\n'
   for (const dpi of [600, 300, 150, 100, 50, 2]) {
-    await $`gs -dBATCH -dNOPAUSE -r${dpi} -sDEVICE=pngmono -o "${out}/out.png" "${out}/out.pdf"`.nothrow()
+    await $`${gs} -dBATCH -dNOPAUSE -r${dpi} -sDEVICE=pngmono -o "${out}/out.png" "${out}/out.pdf"`.nothrow()
     // if png does not exist
     if (!(await Bun.file(`${out}/out.png`).exists())) {
       text += 'Failed: Unexpected error\nNo PNG generated'
@@ -167,7 +173,7 @@ app.post('/pdf', tempDirMiddleware, async c => {
   // compress pdf
   console.info('Compressing PDF...')
   text += 'Compressing PDF...\n'
-  await $`gs -dBATCH -dCompatibilityLevel=1.5 -dNOPAUSE -sDEVICE=pdfwrite -o "${out}/out-comp.pdf" "${out}/out.pdf"`.nothrow()
+  await $`${gs} -dBATCH -dCompatibilityLevel=1.5 -dNOPAUSE -sDEVICE=pdfwrite -o "${out}/out-comp.pdf" "${out}/out.pdf"`.nothrow()
   // if compressed pdf does not exist
   if (!(await Bun.file(`${out}/out-comp.pdf`).exists())) {
     text += 'Failed: Unexpected error\nNo compressed PDF generated'
