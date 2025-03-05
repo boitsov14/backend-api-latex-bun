@@ -4,7 +4,7 @@ import { cors } from 'hono/cors'
 import { createMiddleware } from 'hono/factory'
 import { logger } from 'hono/logger'
 import { Hono } from 'hono/quick'
-import sizeOf from 'image-size'
+import { imageSizeFromFile } from 'image-size/fromFile'
 
 const PNG_MAX_DIMENSION = 8192
 const gs = process.platform === 'win32' ? 'gswin64c' : 'gs'
@@ -122,13 +122,13 @@ app.post('/png', tempDirMiddleware, async c => {
     }
     console.info('Done!')
     // check dimensions
-    const dimensions = sizeOf(`${out}/out.png`)
-    console.info(`${dpi} DPI: ${dimensions.width}x${dimensions.height}`)
+    const { width, height } = await imageSizeFromFile(`${out}/out.png`)
+    console.info(`${dpi} DPI: ${width}x${height}`)
     if (
-      dimensions.width &&
-      dimensions.width <= PNG_MAX_DIMENSION &&
-      dimensions.height &&
-      dimensions.height <= PNG_MAX_DIMENSION
+      width &&
+      width <= PNG_MAX_DIMENSION &&
+      height &&
+      height <= PNG_MAX_DIMENSION
     ) {
       // read png as buffer
       const buffer = await Bun.file(`${out}/out.png`).arrayBuffer()
