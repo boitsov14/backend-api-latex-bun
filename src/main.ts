@@ -191,6 +191,7 @@ app.post('/pdf', tempDirMiddleware, async c => {
 })
 
 export default {
-  port: 3001,
+  // biome-ignore lint/complexity/useLiteralKeys:
+  port: Bun.env['PORT'] || 8080,
   fetch: app.fetch,
 }
